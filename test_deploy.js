@@ -5,28 +5,63 @@ const ERC20 = require("./node_modules/@openzeppelin/contracts/build/contracts/ER
 const Pair = require("./node_modules/@uniswap/v2-core/build/UniswapV2Pair.json");
 const WETH = require("./node_modules/canonical-weth/build/contracts/WETH9.json");
 
-const RPC = "<ENTER HERE>";
-// const RPC = "http://localhost:8545";
+// Configuration Constants
+const DEFAULT_RPC = "http://localhost:8545";
+const DEFAULT_GAS_PRICE = 0.000005;
+const DEFAULT_GAS_LIMIT = 6000000;
+const ENV_VAR_NAMES = {
+  RPC: "UNISWAP_DEPLOYER_RPC",
+  PRIVATE_KEY: "UNISWAP_DEPLOYER_PRIVATE_KEY",
+  GAS_PRICE: "UNISWAP_DEPLOYER_GAS_PRICE",
+  GAS_LIMIT: "UNISWAP_DEPLOYER_GAS_LIMIT",
+};
 
-const prvKey =
-  "<ENTER HERE>";
+function getConfig() {
+  const config = {
+    RPC: process.env[ENV_VAR_NAMES.RPC] || DEFAULT_RPC,
+    PRIVATE_KEY: process.env[ENV_VAR_NAMES.PRIVATE_KEY]?.trim(),
+    GAS_PRICE: process.env[ENV_VAR_NAMES.GAS_PRICE] || DEFAULT_GAS_PRICE,
+    GAS_LIMIT: process.env[ENV_VAR_NAMES.GAS_LIMIT] || DEFAULT_GAS_LIMIT,
+  };
 
-const GasPrice = 0.000005;
-const GasLimit = 100000000;
+  // Validate Private Key
+  if (!config.PRIVATE_KEY) {
+    console.error(`\x1b[31mERROR:\x1b[0m ${ENV_VAR_NAMES.PRIVATE_KEY} must be provided`);
+    console.log('\nUsage:');
+    console.log(`  ${ENV_VAR_NAMES.RPC}=<rpc_url> ${ENV_VAR_NAMES.PRIVATE_KEY}=<pk> ${ENV_VAR_NAMES.GAS_PRICE}=<gas_price> ${ENV_VAR_NAMES.GAS_LIMIT}=<gas_limit> node deploy-contracts.js`);
+    process.exit(1);
+  } else {
+    if (config.PRIVATE_KEY.length !== 66 || !config.PRIVATE_KEY.startsWith('0x')) {
+      console.error(`\x1b[31mERROR:\x1b[0m '${ENV_VAR_NAMES.PRIVATE_KEY}' must be 66 characters long (including 0x prefix)`);
+      console.error(`Received: ${config.PRIVATE_KEY.slice(0, 8)}... (length: ${config.PRIVATE_KEY.length})`);
+      process.exit(1);
+    }
+  }
+
+  return config;
+}
+
+// Load configuration
+const { RPC, PRIVATE_KEY, GAS_PRICE, GAS_LIMIT } = getConfig();
+console.log('Configuration loaded:');
+console.log(`- RPC Endpoint: ${RPC}`);
+console.log(`- Private Key: ${PRIVATE_KEY.slice(0, 6)}...${PRIVATE_KEY.slice(-4)}`);
+console.log(`- Gas Price: ${GAS_PRICE}`);
+console.log(`- Gas Limit: ${GAS_LIMIT}`);
+console.log('');
 
 // deploy Weth
-
 async function deployWeth(web3, sender) {
   try {
     let weth = new web3.eth.Contract(WETH.abi);
     weth = await weth
       .deploy({ data: WETH.bytecode })
-      .send({ from: sender, gas: GasLimit, gasprice: GasPrice })
+      .send({ from: sender, gas: GAS_LIMIT, gasprice: GAS_PRICE })
 
-    console.log("Weth address", weth.options.address);
+    console.log("Weth address:", weth.options.address);
 
     return weth.options.address;
-  } catch(error) {
+  } catch (error) {
     console.log('Weth deployment went wrong! Lets see what happened...')
     console.log(error)
   }
@@ -35,41 +70,41 @@ async function deployWeth(web3, sender) {
 // deploy two ERC20 contracts
 async function deployTokens(web3, sender) {
   try {
-    let tokenA = new web3.eth.Contract(ERC20.abi);
-    let tokenB = new web3.eth.Contract(ERC20.abi);
-  
-    tokenA = await tokenA
+    let tokenMem = new web3.eth.Contract(ERC20.abi);
+    let tokenNmo = new web3.eth.Contract(ERC20.abi);
+
+    tokenMem = await tokenMem
       .deploy({
         data: ERC20.bytecode,
         arguments: [
-          "tokenA",
-          "TA",
+          "Mehmet",
+          "MEM",
           // 18,
           web3.utils.toWei("9999999999999999999", "ether"),
           sender,
         ],
       })
-      .send({ from: sender, gas: GasLimit, gasprice: GasPrice });
-  
-    console.log("tokenA address", tokenA.options.address);
-  
-    tokenB = await tokenB
+      .send({ from: sender, gas: GAS_LIMIT, gasprice: GAS_PRICE });
+
+    console.log("MEM Token address:", tokenMem.options.address);
+
+    tokenNmo = await tokenNmo
       .deploy({
         data: ERC20.bytecode,
         arguments: [
-          "tokenB",
-          "TB",
+          "Nomos",
+          "NMO",
           // 18,
           web3.utils.toWei("9999999999999999999", "ether"),
           sender,
         ],
       })
-      .send({ from: sender, gas: GasLimit, gasprice: GasPrice });
-  
-    console.log("tokenB address", tokenB.options.address);
-  
-    return [tokenA.options.address, tokenB.options.address];
-  } catch(error) {
+      .send({ from: sender, gas: GAS_LIMIT, gasprice: GAS_PRICE });
+
+    console.log("NMO Token address:", tokenNmo.options.address);
+
+    return [tokenMem.options.address, tokenNmo.options.address];
+  } catch (error) {
     console.log('ERC20 deployment went wrong! Lets see what happened...')
     console.log(error)
   }
@@ -82,10 +117,10 @@ async function deployRouter(web3, factoryAddress, wethAddress, sender) {
     let router = new web3.eth.Contract(Router.abi);
     router = await router
       .deploy({ data: Router.bytecode, arguments: [factoryAddress, wethAddress] })
-      .send({ from: sender, gas: GasLimit, gasprice: GasPrice });
-  
-    console.log("router address", router.options.address);
-  
+      .send({ from: sender, gas: GAS_LIMIT, gasprice: GAS_PRICE });
+
+    console.log("Router address:", router.options.address);
+
     return router.options.address;
   } catch (error) {
     console.log('Router deployment went wrong! Lets see what happened...')
@@ -100,12 +135,12 @@ async function deployFactory(web3, feeToSetter, sender) {
     let factory = new web3.eth.Contract(Factory.abi);
     factory = await factory
       .deploy({ data: Factory.bytecode, arguments: [feeToSetter] })
-      .send({ from: sender, gas: GasLimit, gasprice: GasPrice });
-  
-    console.log("factory address", factory.options.address);
-  
+      .send({ from: sender, gas: GAS_LIMIT, gasprice: GAS_PRICE });
+
+    console.log("Factory address:", factory.options.address);
+
     return factory.options.address;
-  }catch (error) {
+  } catch (error) {
     console.log('Factory deployment went wrong! Lets see what happened...')
     console.log(error)
   }
@@ -116,7 +151,7 @@ async function approve(tokenContract, spender, amount, sender) {
   try {
     await tokenContract.methods
       .approve(spender, amount)
-      .send({ from: sender, gas: GasLimit, gasprice: GasPrice })
+      .send({ from: sender, gas: GAS_LIMIT, gasprice: GAS_PRICE })
       .on("transactionHash", function (hash) {
         console.log("transaction hash", hash);
       })
@@ -128,7 +163,7 @@ async function approve(tokenContract, spender, amount, sender) {
 
     await tokenContract.methods
       .approve(spender, amount)
-      .call({ from: sender, gas: GasLimit, gasprice: GasPrice });
+      .call({ from: sender, gas: GAS_LIMIT, gasprice: GAS_PRICE });
   }
 }
 
@@ -136,21 +171,21 @@ async function approve(tokenContract, spender, amount, sender) {
 async function checkPair(
   web3,
   factoryContract,
-  tokenAAddress,
-  tokenBAddress,
+  tokenMemAddress,
+  tokenNmoAddress,
   sender,
   routerAddress
 ) {
   try {
-    console.log("tokenAAddress: ", tokenAAddress);
-    console.log("tokenBAddress: ", tokenBAddress);
+    console.log("tokenMemAddress: ", tokenMemAddress);
+    console.log("tokenNmoAddress: ", tokenNmoAddress);
 
     const pairAddress = await factoryContract.methods
-      .getPair(tokenAAddress, tokenBAddress)
+      .getPair(tokenMemAddress, tokenNmoAddress)
       .call();
 
-    console.log("tokenA Address", tokenAAddress);
-    console.log("tokenA Address", tokenBAddress);
+    console.log("tokenMem Address", tokenMemAddress);
+    console.log("tokenNmo Address", tokenNmoAddress);
     console.log("pairAddress", pairAddress);
     console.log("router address", routerAddress);
 
@@ -158,18 +193,17 @@ async function checkPair(
 
     const reserves = await pair.methods.getReserves().call();
 
-    console.log("reserves for token A", web3.utils.fromWei(reserves._reserve0));
-    console.log("reserves for token B", web3.utils.fromWei(reserves._reserve1));
+    console.log("reserves for tokenMem", web3.utils.fromWei(reserves._reserve0));
+    console.log("reserves for tokenNmo", web3.utils.fromWei(reserves._reserve1));
   } catch (err) {
     console.log("the check pair reverted! Lets see why...");
     console.log(err);
   }
 }
 
-// the most amazing function on earth
-async function foo() {
+async function deployUniswap() {
   const web3 = new Web3(RPC);
-  const account = web3.eth.accounts.wallet.add(prvKey);
+  const account = web3.eth.accounts.wallet.add(PRIVATE_KEY);
   const myAddress = web3.utils.toChecksumAddress(account.address);
 
   const wethAddress = await deployWeth(web3, myAddress);
@@ -188,15 +222,20 @@ async function foo() {
 
   // const multicallAddress = await deployMulticall(web3, myAddress);
   // const multicall = new web3.eth.Contract(Multicall.abi, multicallAddress);
+  const [tokenMemAddress, tokenNmoAddress] = await deployTokens(web3, myAddress);
 
-  const [tokenAAddress, tokenBAddress] = await deployTokens(web3, myAddress);
+  const tokenMem = new web3.eth.Contract(ERC20.abi, tokenMemAddress);
+  const tokenNmo = new web3.eth.Contract(ERC20.abi, tokenNmoAddress);
 
-  const tokenA = new web3.eth.Contract(ERC20.abi, tokenAAddress);
-  const tokenB = new web3.eth.Contract(ERC20.abi, tokenBAddress);
+  console.log("# You may also copy this to Nomiswap's .env file:");
+  console.log(`REACT_APP_NOMISWAP_ROUTER_ADDRESS=${routerAddress}`);
+  console.log(`REACT_APP_NOMISWAP_TOKEN_MEM_ADDRESS=${tokenMemAddress}`);
+  console.log(`REACT_APP_NOMISWAP_TOKEN_NMO_ADDRESS=${tokenNmoAddress}`);
 
-  console.log("tokenA", tokenA.options.address);
-  console.log("tokenB", tokenB.options.address);
+  return (tokenMem, tokenMemAddress, tokenNmo, tokenNmoAddress, myAddress, web3, router, routerAddress, factory, weth, wethAddress)
+}
 
+async function addLiquidity(tokenA, tokenAAddress, tokenB, tokenBAddress, myAddress, web3, router, routerAddress, factory, weth, wethAddress) {
   // liquidity
   const amountADesired = web3.utils.toWei("10000000", "ether");
   const amountBDesired = web3.utils.toWei("10000000", "ether");
@@ -234,8 +273,8 @@ async function foo() {
       )
       .send({
         from: myAddress,
-        gas: GasLimit,
-        gasprice: GasPrice,
+        gas: GAS_LIMIT,
+        gasprice: GAS_PRICE,
       })
       .on("transactionHash", function (hash) {
         console.log("transaction hash", hash);
@@ -259,8 +298,8 @@ async function foo() {
       )
       .call({
         from: myAddress,
-        gas: GasLimit,
-        gasprice: GasPrice,
+        gas: GAS_LIMIT,
+        gasprice: GAS_PRICE,
       });
   }
 
@@ -274,4 +313,4 @@ async function foo() {
   );
 }
 
-foo();
+deployUniswap();
