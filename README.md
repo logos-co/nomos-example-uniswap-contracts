@@ -1,3 +1,51 @@
+⚠️ This is a fork that provides a simple way to deploy the Uniswap contracts for [Nomoswap](https://github.com/logos-co/nomos-example-uniswap), Nomos' Uniswap. It includes minor customizations and fixes to better suit this particular use case.
+
+### Pre-requisites
+
+- **Ethereum Node**: Running node
+- **Environment**: Node.js and NPM
+- **Funds**: Deployer address must have sufficient ETH for gas
+
+### Configuration
+
+These are the available arguments, passed as environment variables:
+
+| Variable | Required | Description | Format | Default |
+|----------|----------|-------------|--------| ------- |
+| `UNISWAP_DEPLOYER_PRIVATE_KEY` | ✅ | Deployment wallet private key | `0x` + 64 hex chars | ❌ |
+| `UNISWAP_DEPLOYER_RPC` | ❌ | Ethereum node RPC URL | URL string | http://localhost:8545 |
+| `UNISWAP_DEPLOYER_GAS_PRICE` | ❌ | Custom gas price | ETH as float | 0.000005 |
+| `UNISWAP_DEPLOYER_GAS_LIMIT` | ❌ | Custom gas limit | ETH as float | 6000000 |
+
+### Running
+
+#### Quick start
+```bash
+UNISWAP_DEPLOYER_PRIVATE_KEY=0xPrivateKey ./deploy-contracts.sh
+```
+
+### Deployment Output
+
+After successful execution, the script will output:
+- Uniswap Router address
+- NMO token address  
+- MEM token address
+
+### Integration with [Nomoswap](https://github.com/logos-co/nomos-example-uniswap)
+
+1. Copy the contract addresses from the deployment output.
+2. Provide them to your Nomoswap instance. To do so, follow the setup instructions in [Nomoswap's README](https://github.com/logos-co/nomos-example-uniswap/blob/master/README.md).
+
+### Troubleshooting
+
+- If have any trouble while using this, please open an [Issue](https://github.com/logos-co/nomos-example-uniswap-contracts).
+
+---
+
+### 📄 Original README Below
+
+---
+
 *Scripts to deploy, interact with and test unmodified Uniswap V2 contracts on an EVM blockchain*
 
 
